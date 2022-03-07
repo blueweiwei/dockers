@@ -1,0 +1,6 @@
+version: "3"
+services:
+  sqli-labs:
+    image: c0ny1/sqli-labs
+    ports:
+      - "80:80"
