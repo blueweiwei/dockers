@@ -1,6 +1,0 @@
-version: "3"
-services:
-  sqli-labs:
-    image: acgpiano/sqli-labs
-    ports:
-      - "80:80"
