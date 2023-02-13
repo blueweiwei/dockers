@@ -1,4 +1,4 @@
-version: '3'
+version: '2'
 services:
  oracle_11g_helowin:
    image: jerrysea/oracle_11g_helowin:latest
